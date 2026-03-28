@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elastomer Inspection</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+body{margin:0;font-family:Arial;}
+
+.header{position:sticky;top:0;background:#222;color:#fff;padding:10px;z-index:999;}
+.tabs,.actions{display:flex;gap:5px;margin-top:5px;}
+.tabs button,.actions button{flex:1;padding:8px;border:none;background:#555;color:#fff;}
+.tabs button.active{background:#00aaff;}
+
+.container{position:relative;max-width:900px;margin:auto;}
+.bg-img{width:100%;}
+.overlay{position:absolute;top:0;left:0;width:100%;height:100%;}
+
+.number{
+  position:absolute;width:4vw;height:4vw;font-size:2vw;
+  display:flex;align-items:center;justify-content:center;
+  background:grey;color:#fff;border-radius:4px;
+  transform:translate(-50%,-50%);
+}
+.green{background:#4CAF50;}
+.yellow{background:#FFC107;}
+.red{background:#F44336;}
+
+#modal{
+  display:none;position:fixed;top:0;left:50%;
+  transform:translateX(-50%);
+  width:100%;max-width:900px;background:#fff;padding:10px;z-index:2000;
+}
+
+#viewer{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:3000;
+}
+#viewer img{
+  width:100%;
+  -webkit-touch-callout:default;
+}
+#viewerClose{position:absolute;top:10px;right:10px;background:#fff;padding:6px;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h3>Elastomer Inspection</h3>
+
+  <div class="tabs">
+    <button id="tab_s1" class="active">S1</button>
+    <button id="tab_s2">S2</button>
+  </div>
+
+  <div class="actions">
+    <button onclick="showSummary()">Summary</button>
+    <button onclick="triggerImport()">Import</button>
+    <button onclick="exportData()">Export Data</button>
+    <button onclick="exportPDF()">Export PDF</button>
+  </div>
+
+  <input type="file" id="fileInput" style="display:none">
+</div>
+
+<div class="container">
+  <img src="IMG_1284.jpg" class="bg-img">
+  <div id="overlay" class="overlay"></div>
+</div>
+
+<div id="modal"></div>
+
+<div id="viewer">
+  <img id="viewerImg">
+  <button id="viewerClose" onclick="closeViewer()">Close</button>
+</div>
+
+<script>
+
+let currentSup="s1";
+let current=null;
+
+function get(k){
+  try{return JSON.parse(localStorage.getItem(k))||null;}
+  catch{return null;}
+}
+
+/* INIT */
+window.onload=()=>{
+  const overlay=document.getElementById("overlay");
+
+  for(let i=1;i<=118;i++){
+    let el=document.createElement("div");
+    el.className="number";
+    el.innerText=i;
+    el.id="n"+i;
+
+    let p=get("pos_n"+i);
+    let x=p?.x ?? ((i%12)+1)/13;
+    let y=p?.y ?? (Math.floor((i-1)/12)+1)/10;
+
+    el.style.left=(x*100)+"%";
+    el.style.top=(y*100)+"%";
+
+    el.onclick=()=>openModal(i);
+    overlay.appendChild(el);
+  }
+
+  loadAll();
+};
+
+/* LOAD */
+function loadAll(){
+  for(let i=1;i<=118;i++){
+    let el=document.getElementById("n"+i);
+    el.className="number";
+
+    let d=get(currentSup+"_el_"+i);
+    if(d){
+      if(d.status==="good")el.classList.add("green");
+      if(d.status==="defect")el.classList.add("yellow");
+      if(d.status==="fail")el.classList.add("red");
+    }
+  }
+}
+
+/* SWITCH */
+tab_s1.onclick=()=>{currentSup="s1";tab_s1.classList.add("active");tab_s2.classList.remove("active");loadAll();}
+tab_s2.onclick=()=>{currentSup="s2";tab_s2.classList.add("active");tab_s1.classList.remove("active");loadAll();}
+
+/* MODAL */
+function openModal(id){
+  current=id;
+  let d=get(currentSup+"_el_"+id)||{};
+
+  modal.innerHTML=`
+  <b>Elastomer ${id}</b><br><br>
+
+  <button onclick="setStatus('good')">Good</button>
+  <button onclick="showChecklist('defect')">Defect</button>
+  <button onclick="showChecklist('fail')">Fail</button>
+  <button onclick="reset()">Reset</button>
+
+  <div id="extra"></div>
+
+  <br><textarea id="notes" placeholder="Notes">${d.notes||""}</textarea><br>
+
+  <input id="cameraInput" type="file" accept="image/*" capture>
+  <button onclick="closeModal()">Close</button>
+  `;
+
+  cameraInput.onchange=handlePhoto;
+  modal.style.display="block";
+}
+
+/* STATUS */
+function setStatus(s){
+  let d=get(currentSup+"_el_"+current)||{};
+  d.status=s;
+  d.notes=notes.value;
+  localStorage.setItem(currentSup+"_el_"+current,JSON.stringify(d));
+  loadAll();closeModal();
+}
+
+function reset(){
+  localStorage.removeItem(currentSup+"_el_"+current);
+  loadAll();closeModal();
+}
+
+/* FAULTS */
+function showChecklist(type){
+  extra.innerHTML=`
+  <label><input type="checkbox" value="1"> Rubber cracking</label><br>
+  <label><input type="checkbox" value="2"> Ozone cracking</label><br>
+  <label><input type="checkbox" value="3"> Debonding</label><br>
+  <label><input type="checkbox" value="4"> Creasing</label><br>
+  <label><input type="checkbox" value="5"> Metal damage</label><br>
+  <label><input type="checkbox" value="6"> Cluster failure</label><br>
+  <label><input type="checkbox" value="7"> Bolt issue</label><br>
+  <button onclick="saveChecklist('${type}')">Save</button>`;
+}
+
+function saveChecklist(type){
+  let f=[...document.querySelectorAll("#extra input:checked")].map(x=>x.value);
+  let d=get(currentSup+"_el_"+current)||{};
+  d.status=type;
+  d.faults=f;
+  d.notes=notes.value;
+  localStorage.setItem(currentSup+"_el_"+current,JSON.stringify(d));
+  loadAll();closeModal();
+}
+
+/* PHOTO */
+function handlePhoto(e){
+  let file=e.target.files[0];
+  if(!file)return;
+
+  let d=get(currentSup+"_el_"+current)||{};
+  d.notes=notes.value;
+
+  let f=[...document.querySelectorAll("#extra input:checked")].map(x=>x.value);
+  if(f.length){ d.faults=f; if(!d.status)d.status="defect"; }
+
+  localStorage.setItem(currentSup+"_el_"+current,JSON.stringify(d));
+
+  let reader=new FileReader();
+  reader.onload=ev=>{
+    let img=new Image();
+    img.onload=()=>{
+      let c=document.createElement("canvas");
+      let ctx=c.getContext("2d");
+      c.width=img.width; c.height=img.height;
+      ctx.drawImage(img,0,0);
+
+      ctx.fillStyle="black";
+      ctx.fillRect(0,c.height-100,c.width,100);
+
+      ctx.fillStyle="white";
+      ctx.font="bold 24px Arial";
+
+      let sup=currentSup==="s1"?1:2;
+      let faults=d.faults?.join(",")||"-";
+
+      ctx.fillText(`SUP${sup} EL${current} F:${faults}`,10,c.height-50);
+      ctx.fillText(new Date().toLocaleString(),10,c.height-15);
+
+      viewerImg.src=c.toDataURL("image/jpeg");
+      viewer.style.display="block";
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* SUMMARY */
+function showSummary(){
+  let s1={g:0,d:0,f:0},s2={g:0,d:0,f:0};
+
+  for(let i=1;i<=118;i++){
+    let a=get("s1_el_"+i),b=get("s2_el_"+i);
+
+    if(a){
+      if(a.status==="good")s1.g++;
+      if(a.status==="defect")s1.d++;
+      if(a.status==="fail")s1.f++;
+    }
+    if(b){
+      if(b.status==="good")s2.g++;
+      if(b.status==="defect")s2.d++;
+      if(b.status==="fail")s2.f++;
+    }
+  }
+
+  alert(`S1 Good:${s1.g} Defect:${s1.d} Failed:${s1.f}
+
+S2 Good:${s2.g} Defect:${s2.d} Failed:${s2.f}`);
+}
+
+/* IMPORT */
+function triggerImport(){fileInput.click();}
+fileInput.onchange=(e)=>{
+  if(!confirm("Overwrite data?"))return;
+  let r=new FileReader();
+  r.onload=ev=>{
+    let data=JSON.parse(ev.target.result);
+    for(let k in data){
+      localStorage.setItem(k,JSON.stringify(data[k]));
+    }
+    loadAll();
+  };
+  r.readAsText(e.target.files[0]);
+};
+
+/* EXPORT */
+function exportData(){
+  let data={};
+  for(let i=0;i<localStorage.length;i++){
+    let k=localStorage.key(i);
+    data[k]=JSON.parse(localStorage.getItem(k));
+  }
+  let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="inspection.json";
+  a.click();
+}
+
+/* PDF */
+function exportPDF(){
+  let html=`<h2>Elastomer Inspection Report</h2>
+  <table border="1" style="border-collapse:collapse;width:100%;font-size:10px;">
+  <tr><th>S1 ID</th><th>Status</th><th>Fault</th><th>Notes</th>
+      <th>S2 ID</th><th>Status</th><th>Fault</th><th>Notes</th></tr>`;
+
+  for(let i=1;i<=118;i++){
+    let s1=get("s1_el_"+i)||{}, s2=get("s2_el_"+i)||{};
+    html+=`<tr>
+    <td>S1 E${i}</td>
+    <td style="background:${s1.status==="good"?"#4CAF50":s1.status==="defect"?"#FFC107":s1.status==="fail"?"#F44336":""}">${s1.status||""}</td>
+    <td>${(s1.faults||[]).join(",")}</td>
+    <td>${s1.notes||""}</td>
+    <td>S2 E${i}</td>
+    <td style="background:${s2.status==="good"?"#4CAF50":s2.status==="defect"?"#FFC107":s2.status==="fail"?"#F44336":""}">${s2.status||""}</td>
+    <td>${(s2.faults||[]).join(",")}</td>
+    <td>${s2.notes||""}</td>
+    </tr>`;
+  }
+
+  html+="</table>";
+  html2pdf().from(html).save("inspection_report.pdf");
+}
+
+function closeViewer(){viewer.style.display="none";}
+function closeModal(){modal.style.display="none";}
+
+</script>
+</body>
+</html>
