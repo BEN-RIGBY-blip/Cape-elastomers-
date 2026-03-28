@@ -16,13 +16,24 @@ body{margin:0;font-family:Arial;}
 .tabs button.active{background:#00aaff;}
 
 .container{position:relative;max-width:900px;margin:auto;}
-.bg-img{width:100%;}
+.bg-img{
+  width:100%;
+  height:auto;
+  display:block;
+}
 .overlay{position:absolute;top:0;left:0;width:100%;height:100%;}
 
 .number{
-  position:absolute;width:4vw;height:4vw;font-size:2vw;
-  display:flex;align-items:center;justify-content:center;
-  background:grey;color:#fff;border-radius:4px;
+  position:absolute;
+  width:3.5%;
+  height:2%;
+  font-size:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:grey;
+  color:#fff;
+  border-radius:4px;
   transform:translate(-50%,-50%);
 }
 .green{background:#4CAF50;}
@@ -89,8 +100,17 @@ function get(k){
 }
 
 /* INIT */
-window.onload=()=>{
+window.onload = () => {
+  const img = document.querySelector(".bg-img");
+
+  img.onload = initMarkers;
+
+  if (img.complete) initMarkers();
+};
+
+function initMarkers(){
   const overlay=document.getElementById("overlay");
+  overlay.innerHTML="";
 
   for(let i=1;i<=118;i++){
     let el=document.createElement("div");
@@ -110,7 +130,7 @@ window.onload=()=>{
   }
 
   loadAll();
-};
+}
 
 /* LOAD */
 function loadAll(){
