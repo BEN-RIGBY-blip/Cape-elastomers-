@@ -15,13 +15,25 @@ body{margin:0;font-family:Arial;}
 .tabs button,.actions button{flex:1;padding:8px;border:none;background:#555;color:#fff;}
 .tabs button.active{background:#00aaff;}
 
-.container{position:relative;max-width:900px;margin:auto;}
+.container{
+  position:relative;
+  max-width:900px;
+  margin:auto;
+}
+
 .bg-img{
   width:100%;
   height:auto;
   display:block;
 }
-.overlay{position:absolute;top:0;left:0;width:100%;height:100%;}
+
+.overlay{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+}
 
 .number{
   position:absolute;
@@ -100,38 +112,44 @@ function get(k){
 }
 
 /* INIT */
-/* INIT */
 window.onload = () => {
   const img = document.querySelector(".bg-img");
 
-  img.onload = initMarkers;
+  function initMarkers(){
+    const overlay = document.getElementById("overlay");
 
-  if (img.complete) initMarkers();
-};
+    // 🔥 Force overlay to match image EXACTLY
+    overlay.style.width = img.clientWidth + "px";
+    overlay.style.height = img.clientHeight + "px";
 
-function initMarkers(){
-  const overlay=document.getElementById("overlay");
-  overlay.innerHTML="";
+    overlay.innerHTML = "";
 
-  for(let i=1;i<=118;i++){
-    let el=document.createElement("div");
-    el.className="number";
-    el.innerText=i;
-    el.id="n"+i;
+    for(let i=1;i<=118;i++){
+      let el = document.createElement("div");
+      el.className = "number";
+      el.innerText = i;
+      el.id = "n" + i;
 
-    let p=get("pos_n"+i);
-    let x=p?.x ?? ((i%12)+1)/13;
-    let y=p?.y ?? (Math.floor((i-1)/12)+1)/10;
+      let p = get("pos_n" + i);
+      let x = p?.x ?? ((i % 12) + 1) / 13;
+      let y = p?.y ?? (Math.floor((i - 1) / 12) + 1) / 10;
 
-    el.style.left=(x*100)+"%";
-    el.style.top=(y*100)+"%";
+      el.style.left = (x * 100) + "%";
+      el.style.top  = (y * 100) + "%";
 
-    el.onclick=()=>openModal(i);
-    overlay.appendChild(el);
+      el.onclick = () => openModal(i);
+      overlay.appendChild(el);
+    }
+
+    loadAll();
   }
 
-  loadAll();
-}
+  // 🔥 Run when image loads
+  img.onload = initMarkers;
+
+  // 🔥 Run immediately if already cached
+  if (img.complete) initMarkers();
+};
 
 /* LOAD */
 function loadAll(){
