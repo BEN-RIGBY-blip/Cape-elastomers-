@@ -120,7 +120,7 @@ function initMarkers(){
 
     let p=get("pos_n"+i);
     let x=p?.x ?? ((i%12)+1)/13;
-    let y=p?.y ?? (Math.floor((i-1)/12)+1)/10;
+    let y = (Math.floor((i-1)/12)+1)/13;
 
     el.style.left=(x*100)+"%";
     el.style.top=(y*100)+"%";
